@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include <viennafem/fem.hpp>
 #include <viennadata/api.hpp>
 
@@ -29,8 +31,12 @@ namespace cgal {
     typedef CDTPlus::Vertex_handle                                  Vertex;
 }
 
-Domain get(const contour &cnt, double resolution) {
+Domain get(const contour &cnt, double resolution,
+        amgcl::profiler<std::chrono::high_resolution_clock> &prof
+        )
+{
     // Generate mesh with CGAL.
+    prof.tic("CGAL");
     cgal::CDTPlus cdt;
 
     std::vector<cgal::Vertex> boundary;
@@ -64,8 +70,10 @@ Domain get(const contour &cnt, double resolution) {
     cdt.insert_constraint(wmark_left, wmark_right);
 
     CGAL::refine_Delaunay_mesh_2(cdt, cgal::Criteria(0.2, resolution));
+    prof.toc("CGAL");
 
     // Populate ViennaGrid domain.
+    prof.tic("ViennaGrid");
     Domain domain;
     domain.segments().resize(2);
 
@@ -112,6 +120,7 @@ Domain get(const contour &cnt, double resolution) {
             viennadata::access<boundary_key, bool>(boundary_key(0))(*points[(*v)->point()]) = true;
         }
     }
+    prof.toc("ViennaGrid");
 
     return domain;
 }

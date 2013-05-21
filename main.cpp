@@ -28,10 +28,10 @@ int main(int argc, char *argv[]) {
     amgcl::profiler<std::chrono::high_resolution_clock> prof;
 
     // Generate domain for a semicircle.
-    prof.tic("domain");
+    prof.tic("generate mesh");
     contour c(256, 0.4);
-    auto domain = mesher::get(c, argc > 1 ? std::stod(argv[1]) : 3e-2);
-    prof.toc("domain");
+    auto domain = mesher::get(c, argc > 1 ? std::stod(argv[1]) : 3e-2, prof);
+    prof.toc("generate mesh");
 
     // Assemble linear system for the PDE.
     prof.tic("assemble");
@@ -65,7 +65,9 @@ int main(int argc, char *argv[]) {
         > AMG;
 
     prof.tic("solve");
+    prof.tic("setup");
     AMG amg( amgcl::sparse::map(A), AMG::params() );
+    prof.toc("setup");
 
     std::cout << amg << std::endl;
 
