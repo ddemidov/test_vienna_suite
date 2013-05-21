@@ -20,31 +20,8 @@
 #include "contour.h"
 #include "mesher.h"
 
-typedef boost::numeric::ublas::compressed_matrix<double, boost::numeric::ublas::row_major> ublas_matrix;
+typedef boost::numeric::ublas::compressed_matrix<double> ublas_matrix;
 typedef boost::numeric::ublas::vector<double> ublas_vector;
-
-typedef amgcl::solver<
-    double, ptrdiff_t,
-    amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
-    amgcl::level::cpu<amgcl::relax::spai0>
-    > AMG;
-
-//---------------------------------------------------------------------------
-struct is_boundary {
-    const mesher::Domain &domain;
-
-    is_boundary(const mesher::Domain &domain) : domain(domain) {}
-
-    template <class Face>
-    bool operator()(const Face &face) const {
-        return viennagrid::is_boundary(face, domain);
-    }
-};
-
-//---------------------------------------------------------------------------
-inline bool equal(double a, double b) {
-    return fabs(a - b) < 1e-8;
-}
 
 // Solve equation laplace(u) = 1 on a semicircle.
 int main(int argc, char *argv[]) {
@@ -81,6 +58,12 @@ int main(int argc, char *argv[]) {
     ublas_vector x(f.size(), 0.0);
 
     // Solve the assembled system with amgcl
+    typedef amgcl::solver<
+        double, ptrdiff_t,
+        amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
+        amgcl::level::cpu<amgcl::relax::spai0>
+        > AMG;
+
     prof.tic("solve");
     AMG amg( amgcl::sparse::map(A), AMG::params() );
 
