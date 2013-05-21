@@ -1,4 +1,5 @@
-#include "mesher.h"
+#include <viennafem/fem.hpp>
+#include <viennadata/api.hpp>
 
 #define CGAL_DISABLE_ROUNDING_MATH_CHECK
 
@@ -9,6 +10,8 @@
 #include <CGAL/Triangulation_vertex_base_2.h>
 #include <CGAL/Delaunay_mesh_face_base_2.h>
 #include <CGAL/Delaunay_mesh_size_criteria_2.h>
+
+#include "mesher.h"
 
 namespace mesher {
 
@@ -50,7 +53,7 @@ Domain get(const contour &cnt, double resolution) {
     std::for_each(cnt.begin(contour::wet), cnt.end(contour::wet), add_segment);
 
     auto wmark_right = boundary.back();
-    double watermark   = wmark_right->point().y();
+    double watermark = wmark_right->point().y();
 
     std::for_each(cnt.begin(contour::dry), cnt.end(contour::dry), add_segment);
 
@@ -94,6 +97,20 @@ Domain get(const contour &cnt, double resolution) {
 
         cell.vertices(v);
         domain.segments()[center > watermark].push_back(cell);
+    }
+
+
+    // Mark dirichlet boundaries.
+    for(auto v1 = boundary.begin(), v2 = v1 + 1; v2 != boundary.end(); ++v1, ++v2) {
+        for(auto v = cdt.vertices_in_constraint_begin(*v1, *v2),
+                 e = cdt.vertices_in_constraint_end  (*v1, *v2);
+            v != e; ++v
+           )
+        {
+            using viennafem::boundary_key;
+
+            viennadata::access<boundary_key, bool>(boundary_key(0))(*points[(*v)->point()]) = true;
+        }
     }
 
     return domain;

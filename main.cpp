@@ -1,5 +1,7 @@
 #include <chrono>
+#include <algorithm>
 
+#include <viennagrid/algorithm/boundary.hpp>
 #include <viennafem/fem.hpp>
 #include <viennafem/io/vtk_writer.hpp>
 #include <viennamath/expression.hpp>
@@ -27,6 +29,23 @@ typedef amgcl::solver<
     amgcl::level::cpu<amgcl::relax::spai0>
     > AMG;
 
+//---------------------------------------------------------------------------
+struct is_boundary {
+    const mesher::Domain &domain;
+
+    is_boundary(const mesher::Domain &domain) : domain(domain) {}
+
+    template <class Face>
+    bool operator()(const Face &face) const {
+        return viennagrid::is_boundary(face, domain);
+    }
+};
+
+//---------------------------------------------------------------------------
+inline bool equal(double a, double b) {
+    return fabs(a - b) < 1e-8;
+}
+
 // Solve equation laplace(u) = 1 on a semicircle.
 int main(int argc, char *argv[]) {
     amgcl::profiler<std::chrono::high_resolution_clock> prof;
@@ -42,11 +61,13 @@ int main(int argc, char *argv[]) {
     viennamath::function_symbol u;
     auto poisson = viennamath::make_equation( viennamath::laplace(u), 1 );
 
+    // Boundary condition on the outer boundary.
     auto vertices = viennagrid::ncells<0>(domain);
     for(auto v = vertices.begin(); v != vertices.end(); ++v) {
-        if (fabs((*v)[0]) < 1e-8) {
+        using viennafem::boundary_key;
+
+        if (viennadata::find<boundary_key, bool>(boundary_key(0))(*v))
             viennafem::set_dirichlet_boundary(*v, 0.0);
-        }
     }
 
     ublas_matrix A;
