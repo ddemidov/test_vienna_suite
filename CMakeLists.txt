@@ -5,6 +5,10 @@ set(CMAKE_CXX_FLAGS "-std=c++0x -frounding-math")
 
 find_package(Boost)
 
+find_path(EIGEN_INCLUDE Eigen/SparseCore
+    PATH_SUFFIXES eigen3
+    )
+
 find_path(AMGCL_INCLUDE amgcl/amgcl.hpp
     PATHS $ENV{HOME}/work/amgcl
     )
@@ -15,9 +19,10 @@ find_path(VIENNA_SUITE  viennafem/fem.hpp
 
 include_directories(
     ${Boost_INCLUDE_DIRS}
+    ${EIGEN_INCLUDE}
     ${AMGCL_INCLUDE}
     ${VIENNA_SUITE}
     )
 
 add_executable(test_vienna_suite main.cpp contour.cpp mesher.cpp)
-target_link_libraries(test_vienna_suite CGAL gmp)
+target_link_libraries(test_vienna_suite CGAL gmp tcmalloc)

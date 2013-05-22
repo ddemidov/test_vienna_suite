@@ -16,11 +16,12 @@
 
 namespace mesher {
 
-typedef viennagrid::config::triangular_2d                                 Config;
-typedef viennagrid::result_of::domain<Config>::type                       Domain;
-typedef viennagrid::result_of::point<Config>::type                        Point;
-typedef viennagrid::result_of::ncell<Config, Config::cell_tag::dim>::type Triangle;
-typedef viennagrid::result_of::ncell<Config, 0>::type                     Vertex;
+typedef viennagrid::config::triangular_2d                        Config;
+typedef viennagrid::result_of::domain<Config>::type              Domain;
+typedef viennagrid::result_of::point<Config>::type               Point;
+typedef Config::cell_tag                                         CellTag;
+typedef viennagrid::result_of::ncell<Config, CellTag::dim>::type Triangle;
+typedef viennagrid::result_of::ncell<Config, 0>::type            Vertex;
 
 Domain get(const contour &cnt, double resolution,
         amgcl::profiler<std::chrono::high_resolution_clock> &prof
