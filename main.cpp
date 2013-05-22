@@ -23,61 +23,77 @@
 typedef boost::numeric::ublas::compressed_matrix<double> ublas_matrix;
 typedef boost::numeric::ublas::vector<double> ublas_vector;
 
+namespace grid = viennagrid;
+namespace data = viennadata;
+namespace math = viennamath;
+namespace fem  = viennafem;
+
 // Solve equation laplace(u) = 1 on a semicircle.
 int main(int argc, char *argv[]) {
     amgcl::profiler<std::chrono::high_resolution_clock> prof;
 
-    // Generate domain for a semicircle.
+
+
     prof.tic("generate mesh");
     contour c(256, 0.4);
     auto domain = mesher::get(c, argc > 1 ? std::stod(argv[1]) : 3e-2, prof);
     prof.toc("generate mesh");
 
-    // Assemble linear system for the PDE.
-    prof.tic("assemble");
-    viennamath::function_symbol u;
-    auto poisson = viennamath::make_equation( viennamath::laplace(u), 1 );
 
-    // Boundary condition on the outer boundary.
-    auto vertices = viennagrid::ncells<0>(domain);
+
+    prof.tic("boundary conditions");
+    auto vertices = grid::ncells<0>(domain);
     for(auto v = vertices.begin(); v != vertices.end(); ++v) {
-        using viennafem::boundary_key;
-
-        if (viennadata::find<boundary_key, bool>(boundary_key(0))(*v))
-            viennafem::set_dirichlet_boundary(*v, 0.0);
+        if (data::find<fem::boundary_key, bool>(fem::boundary_key(0))(*v))
+            fem::set_dirichlet_boundary(*v, 0.0);
     }
+    prof.toc("boundary conditions");
 
+
+
+    prof.tic("assemble");
     ublas_matrix A;
     ublas_vector f;
 
-    viennafem::pde_assembler fem_assembler;
+    {
+        math::function_symbol u(0, math::unknown_tag<>());
+        math::function_symbol v(0, math::test_tag<>());
 
-    fem_assembler(viennafem::make_linear_pde_system(poisson, u), domain, A, f);
+        auto weak_poisson = math::make_equation(
+                math::integral(math::symbolic_interval(), math::grad(u) * math::grad(v)),
+                math::integral(math::symbolic_interval(), -1 * v)
+                );
+
+        fem::pde_assembler()(fem::make_linear_pde_system(weak_poisson, u), domain, A, f);
+    }
     prof.toc("assemble");
 
-    ublas_vector x(f.size(), 0.0);
 
-    // Solve the assembled system with amgcl
+
+    prof.tic("solve");
     typedef amgcl::solver<
         double, ptrdiff_t,
         amgcl::interp::smoothed_aggregation<amgcl::aggr::plain>,
         amgcl::level::cpu<amgcl::relax::spai0>
         > AMG;
 
-    prof.tic("solve");
     prof.tic("setup");
     AMG amg( amgcl::sparse::map(A), AMG::params() );
     prof.toc("setup");
 
     std::cout << amg << std::endl;
 
-    auto cnv = amgcl::solve(A, f, amg, x, amgcl::bicg_tag());
+    ublas_vector x(f.size(), 0.0);
+    amgcl::solve(A, f, amg, x, amgcl::bicg_tag());
     prof.toc("solve");
 
-    // Save the result.
-    prof.tic("write");
-    viennafem::io::write_solution_to_VTK_file(x, "test", domain, 0);
-    prof.toc("write");
+
+
+    prof.tic("save result");
+    fem::io::write_solution_to_VTK_file(x, "test", domain, 0);
+    prof.toc("save result");
+
+
 
     std::cout << prof << std::endl;
 }
