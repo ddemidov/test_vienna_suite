@@ -7,7 +7,6 @@
 #include <viennamath/expression.hpp>
 #include <viennacl/tools/adapter.hpp>
 
-#include <Eigen/Dense>
 #include <Eigen/Core>
 #include <Eigen/SparseCore>
 #include <boost/numeric/ublas/vector.hpp>
@@ -100,9 +99,7 @@ int main(int argc, char *argv[]) {
                 );
 
         A = convert_to_csr(A_tmp);
-
-        f.resize(f_tmp.size());
-        std::copy(f_tmp.begin(), f_tmp.end(), &f[0]);
+        f = Eigen::Map<Eigen::VectorXd>(&f_tmp[0], f_tmp.size());
     }
     prof.toc("assemble");
 
