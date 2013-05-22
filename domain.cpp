@@ -138,12 +138,11 @@ void domain::assemble(Matrix &A, Vector &rhs) const {
     const auto &cdt = m->cdt;
     size_t n = cdt.number_of_vertices();
 
-
-    A.resize(n, n);
-    A.reserve(Eigen::VectorXi::Constant(n, 16));
     rhs = Vector::Zero(n);
 
     double wm = 3 * m->watermark;
+
+    std::vector< std::map<long, double> > A_tmp(n);
 
     for(auto face = cdt.finite_faces_begin(); face != cdt.finite_faces_end(); ++face) {
 	if (!face->is_in_domain()) continue;
@@ -177,7 +176,7 @@ void domain::assemble(Matrix &A, Vector &rhs) const {
 
 		if (dirichlet[j]) continue;
 
-		A.coeffRef(id[i], id[j]) += 0.5 * M * detJ
+		A_tmp[id[i]][id[j]] += 0.5 * M * detJ
 		    * (face->info().grad[i].dot(face->info().grad[j]));
 	    }
 	}
@@ -188,10 +187,22 @@ void domain::assemble(Matrix &A, Vector &rhs) const {
 	if (vtx->info().dirichlet) {
             long row = vtx->info().id;
 
-	    A.coeffRef(row, row) = 1.0;
+	    A_tmp[row][row] = 1.0;
 	    rhs[row] = 0.0;
 	}
     }
+
+    size_t nnz = std::accumulate(A_tmp.begin(), A_tmp.end(), 0UL,
+            [](size_t sum, const std::map<long, double> &r) {
+                return sum + r.size();
+            });
+
+    A.resize(n, n);
+    A.reserve(nnz);
+
+    for(long i = 0; i < n; ++i)
+        for(auto v = A_tmp[i].begin(), e = A_tmp[i].end(); v != e; ++v)
+            A.insert(i, v->first) = v->second;
 
     A.makeCompressed();
 }
