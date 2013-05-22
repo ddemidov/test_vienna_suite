@@ -20,4 +20,4 @@ include_directories(
     )
 
 add_executable(test_vienna_suite main.cpp contour.cpp mesher.cpp)
-target_link_libraries(test_vienna_suite CGAL gmp)
+target_link_libraries(test_vienna_suite CGAL gmp tcmalloc)
