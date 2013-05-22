@@ -106,7 +106,7 @@ int main(int argc, char *argv[]) {
 
     std::cout << A.outerSize() << " x " << A.innerSize() << " : " << A.nonZeros() << std::endl;
 
-
+    /*
     prof.tic("solve");
     typedef amgcl::solver<
         double, ptrdiff_t,
@@ -129,6 +129,7 @@ int main(int argc, char *argv[]) {
     prof.tic("save result");
     fem::io::write_solution_to_VTK_file(x, "test", domain, 0);
     prof.toc("save result");
+    */
 
 
 

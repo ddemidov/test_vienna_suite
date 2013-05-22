@@ -71,8 +71,15 @@ class eigen_sparse_matrix_adaptor {
         size_type size1() const { return A.outerSize(); }
         size_type size2() const { return A.innerSize(); }
 
-        value_type  operator()(size_type i, size_type j) const { return A.coeff(i,j); }
-        value_type& operator()(size_type i, size_type j)       { return A.coeffRef(i,j); }
+        value_type  operator()(size_type i, size_type j) const {
+            //return A.coeff(i,j);
+            return 0;
+        }
+        value_type& operator()(size_type i, size_type j) {
+            //return A.coeffRef(i,j);
+            static value_type dummy = 0;
+            return dummy;
+        }
 
         void resize(size_type rows, size_type cols, bool) {
             A.resize(rows, cols);
