@@ -21,7 +21,9 @@
 
 #include "contour.h"
 #include "mesher.h"
+#include "eigen_adapter.hpp"
 
+typedef Eigen::SparseMatrix<double, Eigen::RowMajor> eigen_matrix;
 typedef boost::numeric::ublas::vector<double> ublas_vector;
 
 namespace grid = viennagrid;
@@ -73,12 +75,11 @@ int main(int argc, char *argv[]) {
 
 
     prof.tic("assemble");
-    amgcl::sparse::matrix<double, int> A;
+    eigen_matrix A;
     Eigen::VectorXd f;
 
     {
-        std::vector< std::map<unsigned, double> > A_tmp;
-        viennacl::tools::sparse_matrix_adapter<double> A_proxy(A_tmp);
+        eigen_sparse_matrix_adaptor<eigen_matrix> A_proxy(A);
         ublas_vector f_tmp;
 
         math::function_symbol u(0, math::unknown_tag<>());
@@ -98,11 +99,12 @@ int main(int argc, char *argv[]) {
                 domain, A_proxy, f_tmp
                 );
 
-        A = convert_to_csr(A_tmp);
+        A.makeCompressed();
         f = Eigen::Map<Eigen::VectorXd>(&f_tmp[0], f_tmp.size());
     }
     prof.toc("assemble");
 
+    std::cout << A.outerSize() << " x " << A.innerSize() << " : " << A.nonZeros() << std::endl;
 
 
     prof.tic("solve");
@@ -113,16 +115,13 @@ int main(int argc, char *argv[]) {
         > AMG;
 
     prof.tic("setup");
-    AMG amg( A, AMG::params() );
+    AMG amg( amgcl::sparse::map(A), AMG::params() );
     prof.toc("setup");
 
     std::cout << amg << std::endl;
 
-    Eigen::MappedSparseMatrix<double, Eigen::RowMajor, int> A_eigen(
-            A.rows, A.cols, A.row.back(), A.row.data(), A.col.data(), A.val.data()
-            );
-    Eigen::VectorXd x = Eigen::VectorXd::Zero(A.rows);
-    amgcl::solve(A_eigen, f, amg, x, amgcl::bicg_tag());
+    Eigen::VectorXd x = Eigen::VectorXd::Zero(f.size());
+    amgcl::solve(A, f, amg, x, amgcl::bicg_tag());
     prof.toc("solve");
 
 
