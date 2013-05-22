@@ -28,6 +28,10 @@ namespace data = viennadata;
 namespace math = viennamath;
 namespace fem  = viennafem;
 
+struct viscosity_tag {
+    bool operator<(viscosity_tag) const { return false; }
+};
+
 // Solve equation laplace(u) = 1 on a semicircle.
 int main(int argc, char *argv[]) {
     amgcl::profiler<std::chrono::high_resolution_clock> prof;
@@ -51,6 +55,16 @@ int main(int argc, char *argv[]) {
 
 
 
+    prof.tic("domain properties");
+    for(size_t s_id = 0; s_id < 2; ++s_id) {
+        auto elements = grid::ncells<mesher::CellTag::dim>(domain.segments()[s_id]);
+        for(auto e = elements.begin(); e != elements.end(); ++e)
+            data::access<viscosity_tag, double>(viscosity_tag())(*e) = s_id ? 10.0 : 1.0;
+    }
+    prof.toc("domain properties");
+
+
+
     prof.tic("assemble");
     ublas_matrix A;
     ublas_vector f;
@@ -59,8 +73,12 @@ int main(int argc, char *argv[]) {
         math::function_symbol u(0, math::unknown_tag<>());
         math::function_symbol v(0, math::test_tag<>());
 
+        fem::cell_quan<mesher::Triangle, math::expr::interface_type> viscosity;
+        viscosity.wrap_constant(viscosity_tag());
+
         auto weak_poisson = math::make_equation(
-                math::integral(math::symbolic_interval(), math::grad(u) * math::grad(v)),
+                math::integral(math::symbolic_interval(),
+                    viscosity * (math::grad(u) * math::grad(v))),
                 math::integral(math::symbolic_interval(), -1 * v)
                 );
 
