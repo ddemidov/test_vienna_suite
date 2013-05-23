@@ -5,6 +5,7 @@
 #include <viennafem/fem.hpp>
 #include <viennafem/io/vtk_writer.hpp>
 #include <viennamath/expression.hpp>
+#include <viennadata/api.hpp>
 #include <viennacl/tools/adapter.hpp>
 
 #include <Eigen/Core>
@@ -33,6 +34,34 @@ struct viscosity_tag {
     bool operator<(viscosity_tag) const { return false; }
 };
 
+namespace viennadata { namespace config {
+
+template <long id>
+struct key_dispatch<viennafem::mapping_key_type<id> >
+{
+    typedef type_key_dispatch_tag tag;
+};
+
+template <>
+struct key_dispatch<viennafem::mapping_key>
+{
+    typedef type_key_dispatch_tag tag;
+};
+
+template <>
+struct key_dispatch<viennafem::boundary_key >
+{
+    typedef type_key_dispatch_tag tag;
+};
+
+template <>
+struct key_dispatch<viscosity_tag>
+{
+    typedef type_key_dispatch_tag tag;
+};
+
+} }
+
 amgcl::sparse::matrix<double, int> convert_to_csr(
         const std::vector< std::map<unsigned, double> > &A
         );
@@ -55,8 +84,10 @@ int main(int argc, char *argv[]) {
     prof.tic("boundary conditions");
     auto vertices = grid::ncells<0>(domain);
     for(auto v = vertices.begin(); v != vertices.end(); ++v) {
-        if (data::find<fem::boundary_key, bool>(fem::boundary_key(0))(*v))
-            fem::set_dirichlet_boundary(*v, 0.0);
+        if (data::find<fem::boundary_key, bool>()(*v)) {
+            data::access<fem::boundary_key, bool>()(*v) = true;
+            data::access<fem::boundary_key, double>()(*v) = 0.0;
+        }
     }
     prof.toc("boundary conditions");
 
@@ -66,7 +97,7 @@ int main(int argc, char *argv[]) {
     for(size_t s_id = 0; s_id < 2; ++s_id) {
         auto elements = grid::ncells<mesher::CellTag::dim>(domain.segments()[s_id]);
         for(auto e = elements.begin(); e != elements.end(); ++e)
-            data::access<viscosity_tag, double>(viscosity_tag())(*e) = s_id ? 10.0 : 1.0;
+            data::access<viscosity_tag, double>()(*e) = s_id ? 10.0 : 1.0;
     }
     prof.toc("domain properties");
 
